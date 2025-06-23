@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String          @id @default(uuid())
+  email               String          @unique
+  password            String
+  fullName            String
+  role                Role
+  securityQuestion    String
+  securityAnswer      String
+  isActive            Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  sentMessages        Message[]       @relation("Sender")
+  receivedMessages    Message[]       @relation("Receiver")
+  demandesCasier      DemandeCasier[]
+  demandesTraitees    DemandeCasier[] @relation("AgentDemandes")
+  demandesSupervisees DemandeCasier[] @relation("SuperviseurDemandes")
+  statut    StatutUtilisateur @default(ACTIF)
+  @@map("users")
+}
+
+model DemandeCasier {
+  id                String            @id @default(uuid())
+  typeCasier        TypeCasier
+  statut            StatutDemande     @default(SOUMISE)
+  modeReception     ModeReception     @default(EN_LIGNE)
+  canalNotification CanalNotification @default(EMAIL)
+  motifRejet        String?
+
+  demandeurId String
+  demandeur   User    @relation(fields: [demandeurId], references: [id])
+  agentId     String?
+  agent       User?   @relation("AgentDemandes", fields: [agentId], references: [id])
+
+  superviseurId String?
+  superviseur   User?   @relation("SuperviseurDemandes", fields: [superviseurId], references: [id])
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  dateAttribution DateTime?
+  dateTraitement  DateTime?
+  dateValidation  DateTime?
+
+  commentaire  String?
+
+  documents Document[]
+  messages  Message[]
+
+  @@map("demandes_casier")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  fromId    String
+  toId      String
+  demandeId String
+  content   String
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  from    User          @relation("Sender", fields: [fromId], references: [id])
+  to      User          @relation("Receiver", fields: [toId], references: [id])
+  demande DemandeCasier @relation(fields: [demandeId], references: [id])
+}
+
+model Document {
+  id            String       @id @default(uuid())
+  nom           String
+  typeDocument  TypeDocument
+  cheminFichier String
+  tailleFichier Int
+  formatFichier String
+
+  demandeId String
+  demande   DemandeCasier @relation(fields: [demandeId], references: [id])
+  createdAt DateTime      @default(now())
+
+  @@map("documents")
+}
+
+enum Role {
+  DEMANDEUR
+  AGENT
+  SUPERVISEUR
+  ADMIN
+}
+
+enum TypeCasier {
+  B3
+}
+
+enum StatutUtilisateur {
+  ACTIF
+  SUSPENDU
+}
+
+enum StatutDemande {
+  SOUMISE
+  EN_COURS
+  INFORMATIONS_MANQUANTES
+  EN_VALIDATION
+  REJETEE
+  TERMINEE
+}
+
+enum ModeReception {
+  EN_LIGNE
+  SUR_PLACE
+}
+
+enum CanalNotification {
+  EMAIL
+  SMS
+}
+
+enum TypeDocument {
+  CNI
+  PASSEPORT
+  PHOTO_IDENTITE
+  JUSTIFICATIF
+  CASIER_GENERE
+}

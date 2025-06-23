@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+      - "5555:5555"
+    volumes:
+      - ./backend:/app
+    environment:
+      NODE_ENV: "development"
+      PORT: "3001"
+      DATABASE_URL: "postgresql://appuser:secret@db:5432/casierdb"
+      JWT_SECRET: "secret"
+      JWT_EXPIRES_IN: "7d"
+      FRONTEND_URL: "http://localhost:3000"
+    depends_on:
+      - db
+    command: ["npx", "ts-node-dev", "--respawn", "src/index.ts"]
+
+  db:
+    image: postgres:15
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: "appuser"
+      POSTGRES_PASSWORD: "secret"
+      POSTGRES_DB: "casierdb"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -34,8 +34,8 @@ const DemandeDetails: React.FC = () => {
       <h2 className="text-xl font-bold mb-4">Détails de la demande</h2>
 
       <div className="mb-4 p-4 border rounded">
-        <p><strong>Nom :</strong> {demande.demandeur?.fullName}</p>
-        <p><strong>Email :</strong> {demande.demandeur?.email}</p>
+        <p><strong>Nom :</strong> {demande.demandeur?.fullName ?? demande.nomAnonyme ?? '—'}</p>
+        <p><strong>Email :</strong> {demande.demandeur?.email ?? demande.emailAnonyme ?? '—'}</p>
         <p><strong>Type :</strong> {demande.typeCasier}</p>
         <p><strong>Statut :</strong> {demande.statut}</p>
         <p><strong>Mode de réception :</strong> {demande.modeReception}</p>

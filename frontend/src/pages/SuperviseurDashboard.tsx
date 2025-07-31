@@ -7,10 +7,12 @@ interface Demande {
   typeCasier: string;
   statut: string;
   createdAt: string;
-  demandeur: {
+  demandeur?: {
     fullName: string;
     email: string;
   };
+  nom?: string;
+  email?: string;
 }
 
 interface Statistiques {
@@ -138,28 +140,28 @@ const SuperviseurDashboard: React.FC = () => {
         </button>
       </div>
       <div className="mb-4">
-      <button
-        onClick={async () => {
-          try {
-            const res = await fetch(`${API_URL}/superviseur/export`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'demandes.csv';
-            a.click();
-            window.URL.revokeObjectURL(url);
-          } catch (err) {
-            console.error('Erreur export CSV :', err);
-          }
-        }}
-        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-      >
-        Exporter en CSV
-      </button>
-    </div>
+        <button
+          onClick={async () => {
+            try {
+              const res = await fetch(`${API_URL}/superviseur/export`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              const blob = await res.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'demandes.csv';
+              a.click();
+              window.URL.revokeObjectURL(url);
+            } catch (err) {
+              console.error('Erreur export CSV :', err);
+            }
+          }}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+        >
+          Exporter en CSV
+        </button>
+      </div>
 
       <div className="mb-4 flex gap-4 flex-wrap">
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)} className="border px-2 py-1 rounded">
@@ -193,8 +195,17 @@ const SuperviseurDashboard: React.FC = () => {
               {controleQualite.map((d) => (
                 <tr key={d.id}>
                   <td className="border px-2 py-1">
-                    {d.demandeur.fullName}<br />
-                    <span className="text-xs text-gray-600">{d.demandeur.email}</span>
+                    {d.demandeur ? (
+                      <>
+                        {d.demandeur.fullName}<br />
+                        <span className="text-xs text-gray-600">{d.demandeur.email}</span>
+                      </>
+                    ) : (
+                      <>
+                        {d.nom}<br />
+                        <span className="text-xs text-gray-600">{d.email}</span>
+                      </>
+                    )}
                   </td>
                   <td className="border px-2 py-1">{d.typeCasier}</td>
                   <td className="border px-2 py-1">{new Date(d.createdAt).toLocaleDateString()}</td>

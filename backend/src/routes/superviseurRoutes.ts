@@ -1,3 +1,4 @@
+// backend/src/routes/superviseurRoutes.ts
 import { PrismaClient } from '@prisma/client';
 import { Request, Response, Router } from 'express';
 import { Parser } from 'json2csv';
@@ -37,22 +38,24 @@ router.get('/controle-qualite', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
+
+// GET /superviseur/export
 router.get('/export', async (req: Request, res: Response) => {
   try {
-    const demandes = await SuperviseurService.getDemandesControleQualite({ limit: 1000 }); // limite export
+    const { demandes } = await SuperviseurService.getDemandesControleQualite({ limit: 1000 });
 
-    const csvFields = ['id', 'typeCasier', 'statut', 'createdAt', 'demandeur.fullName', 'demandeur.email'];
+    const formatted = demandes.map((d) => ({
+      id: d.id,
+      typeCasier: d.typeCasier,
+      statut: d.statut,
+      createdAt: new Date(d.createdAt).toLocaleString(),
+      nom: d.demandeur?.fullName || d.nomAnonyme || 'N/A',
+      email: d.demandeur?.email || d.emailAnonyme || 'N/A'
+    }));
+
+    const csvFields = ['id', 'typeCasier', 'statut', 'createdAt', 'nom', 'email'];
     const parser = new Parser({ fields: csvFields });
-    const csv = parser.parse(
-      demandes.demandes.map((d) => ({
-        id: d.id,
-        typeCasier: d.typeCasier,
-        statut: d.statut,
-        createdAt: new Date(d.createdAt).toLocaleString(),
-        'demandeur.fullName': d.demandeur.fullName,
-        'demandeur.email': d.demandeur.email
-      }))
-    );
+    const csv = parser.parse(formatted);
 
     res.header('Content-Type', 'text/csv');
     res.attachment('demandes.csv');
@@ -62,6 +65,5 @@ router.get('/export', async (req: Request, res: Response) => {
     res.status(500).send('Erreur serveur');
   }
 });
-
 
 export default router;

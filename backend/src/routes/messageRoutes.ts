@@ -10,7 +10,7 @@ router.use(authenticateToken);
 // POST /messages - Envoyer un message
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const fromId = req.user!.userId;
+    const fromId = req.user!.id;
     const { toId, contenu, demandeId } = req.body;
 
     if (!toId || !contenu || !demandeId) {
@@ -28,9 +28,9 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/:demandeId', async (req: Request, res: Response) => {
   try {
     const { demandeId } = req.params;
-    const { userID } = req.params;
+    const userId = req.user!.id;
 
-    const messages = await MessageService.getMessagesParDemande(demandeId, userID);
+    const messages = await MessageService.getMessagesParDemande(demandeId, userId);
     res.json({ message: 'Messages récupérés', data: messages });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Erreur lors de la récupération des messages' });
@@ -41,7 +41,7 @@ router.get('/:demandeId', async (req: Request, res: Response) => {
 router.put('/:id/lu', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     const updatedMessage = await MessageService.marquerCommeLu(id, userId);
 
@@ -55,6 +55,5 @@ router.put('/:id/lu', async (req: Request, res: Response) => {
     });
   }
 });
-
 
 export default router;

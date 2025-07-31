@@ -36,30 +36,34 @@ const ComplementDemande: React.FC = () => {
   };
 
   const handleUpload = async () => {
-    if (!documents.length) return;
+  if (!documents.length) return;
 
-    const formData = new FormData();
-    documents.forEach(doc => {
-      formData.append('documents', doc);
-    });
+  const formData = new FormData();
+  documents.forEach(doc => {
+    formData.append('documents', doc);
+    formData.append(`typeDocument_${doc.name}`, 'JUSTIFICATIF');
+  });
 
-    try {
-      await axios.post(
-        `${process.env.REACT_APP_API_URL}/demandes/${id}/documents`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
+  try {
+    await axios.post(
+      `${process.env.REACT_APP_API_URL}/demandes/${id}/documents`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
         }
-      );
-      setSuccess('Documents ajoutés avec succès.');
-      setDocuments([]);
-    } catch (err) {
-      setError('Erreur lors de l\'envoi des documents.');
-    }
-  };
+      }
+    );
+    setSuccess('Documents ajoutés avec succès.');
+    setDocuments([]);
+    setError(null);
+  } catch (err) {
+    setError("Erreur lors de l'envoi des documents.");
+    setSuccess(null);
+  }
+};
+
 
   if (loading) return <div className="p-4">Chargement...</div>;
   if (error) return <div className="p-4 text-red-600">{error}</div>;

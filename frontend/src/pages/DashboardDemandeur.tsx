@@ -15,7 +15,11 @@ const DashboardDemandeur: React.FC = () => {
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/demandes`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setDemandes(response.data.demandes);
+
+        // ⚠️ Filtrer les demandes appartenant à l'utilisateur connecté uniquement
+        const allDemandes = response.data.demandes || [];
+        const filteredDemandes = allDemandes.filter((demande: any) => demande.demandeurId === null || demande.estAnonyme === false);
+        setDemandes(filteredDemandes);
       } catch (error) {
         console.error('Erreur récupération demandes :', error);
       } finally {

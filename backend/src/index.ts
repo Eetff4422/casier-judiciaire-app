@@ -10,6 +10,7 @@ import agentRoutes from './routes/agentRoutes';
 import authRoutes from './routes/authRoutes';
 import demandeRoutes from './routes/demandeRoutes';
 import messageRoutes from './routes/messageRoutes';
+import publicDemandeRoutes from './routes/publicDemandeRoutes';
 import superviseurRoutes from './routes/superviseurRoutes';
 import { notificationService } from './services/notificationService';
 
@@ -38,6 +39,8 @@ app.use('/api/agent', agentRoutes);
 app.use('/api/superviseur', superviseurRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/public-demande', publicDemandeRoutes);
+
 
 // Route de test
 app.get('/api/health', (req, res) => {

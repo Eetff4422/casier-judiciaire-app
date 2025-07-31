@@ -15,9 +15,18 @@ const DashboardAgent: React.FC = () => {
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/demandes/assigned`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setDemandes(response.data.demandes);
+
+        const data = response.data;
+        const validDemandes = Array.isArray(data)
+          ? data
+          : Array.isArray(data.demandes)
+          ? data.demandes
+          : [];
+
+        setDemandes(validDemandes.filter(Boolean));
       } catch (error) {
         console.error('Erreur chargement demandes assignées:', error);
+        setDemandes([]);
       } finally {
         setLoading(false);
       }
@@ -30,13 +39,26 @@ const DashboardAgent: React.FC = () => {
     navigate(`/agent/traitement/${id}`);
   };
 
+  const renderNom = (demande: any) => {
+    if (demande.estAnonyme) {
+      return `${demande.nomAnonyme || ''} ${demande.prenomAnonyme || ''}`.trim() || 'Inconnu';
+    }
+    return demande.demandeur?.fullName || 'Inconnu';
+  };
+
+  const renderEmail = (demande: any) => {
+    return demande.estAnonyme
+      ? demande.emailAnonyme || 'Inconnu'
+      : demande.demandeur?.email || 'Inconnu';
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-xl font-bold mb-4">Demandes assignées</h1>
 
       {loading ? (
         <p>Chargement...</p>
-      ) : demandes.length === 0 ? (
+      ) : !Array.isArray(demandes) || demandes.length === 0 ? (
         <p>Aucune demande assignée pour l'instant</p>
       ) : (
         <table className="w-full border text-sm">
@@ -53,8 +75,8 @@ const DashboardAgent: React.FC = () => {
           <tbody>
             {demandes.map((demande) => (
               <tr key={demande.id} className="text-center">
-                <td className="p-2 border">{demande.demandeur.fullName}</td>
-                <td className="p-2 border">{demande.demandeur.email}</td>
+                <td className="p-2 border">{renderNom(demande)}</td>
+                <td className="p-2 border">{renderEmail(demande)}</td>
                 <td className="p-2 border">{demande.typeCasier}</td>
                 <td className="p-2 border">{demande.statut}</td>
                 <td className="p-2 border">{new Date(demande.createdAt).toLocaleDateString()}</td>

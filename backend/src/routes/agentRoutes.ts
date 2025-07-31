@@ -10,8 +10,13 @@ router.use(authenticateToken, requireAgent);
 
 // GET /agent/dashboard - Dashboard agent avec statistiques
 router.get('/dashboard', async (req: Request, res: Response) => {
+  const agentId = (req.user as any)?.id;
+  if (!agentId) {
+    console.warn("❌ Agent non authentifié");
+    return res.status(401).json({ message: "Non authentifié" });
+  }
   try {
-    const agentId = req.user!.userId;
+    const agentId = req.user!.id;
     const dashboard = await AgentService.getAgentDashboard(agentId);
 
     res.json({
@@ -27,8 +32,13 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 
 // GET /agent/demandes - Liste des demandes assignées avec filtres
 router.get('/demandes', async (req: Request, res: Response) => {
+  const agentId = (req.user as any)?.id;
+  if (!agentId) {
+    console.warn("❌ Agent non authentifié");
+    return res.status(401).json({ message: "Non authentifié" });
+  }
   try {
-    const agentId = req.user!.userId;
+    const agentId = req.user!.id;
     const {
       statut,
       typeCasier,
@@ -46,7 +56,6 @@ router.get('/demandes', async (req: Request, res: Response) => {
       dateFin: dateFin ? new Date(dateFin as string) : undefined,
       search: search as string
     };
-
 
     const demandes = await AgentService.getAgentQueue(
       agentId,
@@ -70,7 +79,7 @@ router.get('/demandes', async (req: Request, res: Response) => {
 router.get('/demandes/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const agentId = req.user!.userId;
+    const agentId = req.user!.id;
 
     const demande = await AgentService.getDemandeDetails(id, agentId);
 
@@ -85,14 +94,83 @@ router.get('/demandes/:id', async (req: Request, res: Response) => {
   }
 });
 
+// PUT /agent/demandes/:id/valider - Valider une demande
+router.put('/demandes/:id/valider', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { commentaire } = req.body;
+    const agentId = req.user!.id;
+
+    const result = await AgentService.traiterDemandeMixte(agentId, id, {
+      action: 'VALIDER',
+      commentaire: commentaire || ''
+    });
+
+    res.json({
+      message: 'Demande validée avec succès',
+      data: result
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      error: error.message || 'Erreur lors de la validation de la demande'
+    });
+  }
+});
+
+// PUT /agent/demandes/:id/rejeter - Rejeter une demande
+router.put('/demandes/:id/rejeter', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { commentaire } = req.body;
+    const agentId = req.user!.id;
+
+    const result = await AgentService.traiterDemandeMixte(agentId, id, {
+      action: 'REJETER',
+      commentaire: commentaire || ''
+    });
+
+    res.json({
+      message: 'Demande rejetée avec succès',
+      data: result
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      error: error.message || 'Erreur lors du rejet de la demande'
+    });
+  }
+});
+
+// PUT /agent/demandes/:id/demander-infos - Demander des infos
+router.put('/demandes/:id/demander-infos', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { documentsRequis } = req.body;
+    const agentId = req.user!.id;
+
+    const result = await AgentService.traiterDemandeMixte(agentId, id, {
+      action: 'DEMANDER_INFOS',
+      documentsRequis
+    });
+
+    res.json({
+      message: 'Demande mise à jour avec demande d\'informations',
+      data: result
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      error: error.message || 'Erreur lors de la mise à jour de la demande'
+    });
+  }
+});
+
 // PUT /agent/demandes/:id/generer-casier - Générer le casier judiciaire
 router.put('/demandes/:id/generer-casier', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { observations } = req.body;
-    const agentId = req.user!.userId;
+    const agentId = req.user!.id;
 
-    const result = await AgentService.traiterDemande(agentId, id, {
+    const result = await AgentService.traiterDemandeMixte(agentId, id, {
       action: 'GENERER_CASIER',
       commentaire: observations || ''
     });
@@ -111,7 +189,7 @@ router.put('/demandes/:id/generer-casier', async (req: Request, res: Response) =
 // GET /agent/statistiques - Statistiques personnelles de l'agent
 router.get('/statistiques', async (req: Request, res: Response) => {
   try {
-    const agentId = req.user!.userId;
+    const agentId = req.user!.id;
     const { periode = 'mois' } = req.query;
 
     const stats = await AgentService.getAgentStats(agentId, periode as 'semaine' | 'mois' | 'trimestre');

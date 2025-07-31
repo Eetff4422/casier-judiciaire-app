@@ -13,9 +13,11 @@ import DetailDemande from './pages/DemandeDetails';
 import DemandeForm from './pages/DemandeForm';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import PublicDemandeForm from './pages/PublicDemandeForm';
 import RecoverAccount from './pages/RecoverAccount';
 import RegisterPage from './pages/RegisterPage';
 import SuiviDemande from './pages/SuiviDemande';
+import SuiviPublicDemande from './pages/SuiviPublicDemande';
 import SuperviseurDashboard from './pages/SuperviseurDashboard';
 import TraitementDemande from './pages/TraitementDemandes';
 
@@ -25,7 +27,6 @@ function App() {
       <AuthProvider>
         <div className="min-h-screen bg-gray-50">
           <Navbar />
-          <main className="container mx-auto px-4 py-8">
             <Routes>
               {/* Pages publiques */}
               <Route path="/" element={<HomePage />} />
@@ -103,11 +104,12 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/demande-sans-compte" element={<PublicDemandeForm />} />
+<Route path="/suivi-demande/:code" element={<SuiviPublicDemande />} />
 
               {/* Route par défaut */}
               <Route path="*" element={<div className="text-center text-red-600 mt-8">Page non trouvée</div>} />
             </Routes>
-          </main>
         </div>
       </AuthProvider>
     </Router>

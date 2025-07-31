@@ -1,4 +1,4 @@
-// backend/src/services/agentService.ts
+// agentService.ts
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -17,7 +17,6 @@ export interface TraitementData {
   action: 'VALIDER' | 'DEMANDER_INFOS' | 'REJETER' | 'GENERER_CASIER';
   commentaire?: string;
   documentsRequis?: string[];
-  motifRejet?: string;
 }
 
 export class AgentService {
@@ -85,6 +84,31 @@ export class AgentService {
     };
   }
 
+  static async getAssignedDemandes(agentId: string) {
+    const demandes = await prisma.demandeCasier.findMany({
+      where: { agentId },
+      include: {
+        demandeur: {
+          select: {
+            fullName: true,
+            email: true
+          }
+        },
+        documents: {
+          select: {
+            id: true,
+            nom: true,
+            typeDocument: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return demandes;
+  }
+
   static async getAgentQueue(agentId: string, filters: DemandeFilters = {}, page = 1, limit = 10) {
     const {
       statut = ['EN_COURS', 'INFORMATIONS_MANQUANTES'],
@@ -120,16 +144,12 @@ export class AgentService {
       prisma.demandeCasier.findMany({
         where: whereClause,
         include: {
-          demandeur: {
-            select: { id: true, fullName: true, email: true }
-          },
+          demandeur: { select: { fullName: true, email: true } },
           documents: {
             select: { id: true, nom: true, typeDocument: true, createdAt: true }
           }
         },
-        orderBy: [
-          { createdAt: 'asc' }
-        ],
+        orderBy: [{ createdAt: 'asc' }],
         skip: (page - 1) * limit,
         take: limit
       }),
@@ -151,6 +171,78 @@ export class AgentService {
     };
   }
 
+  static async traiterDemandeMixte(agentId: string, demandeId: string, traitement: TraitementData) {
+    const demande = await prisma.demandeCasier.findFirst({
+      where: { id: demandeId },
+      include: { demandeur: true }
+    });
+
+    if (!demande) {
+      throw new Error('Demande non trouvée');
+    }
+
+    if (demande.agentId && demande.agentId !== agentId) {
+      throw new Error('Demande assignée à un autre agent');
+    }
+
+    const { action, commentaire, documentsRequis } = traitement;
+
+    switch (action) {
+      case 'VALIDER':
+        await prisma.demandeCasier.update({
+          where: { id: demandeId },
+          data: {
+            statut: 'TERMINEE',
+            dateTraitement: new Date(),
+            commentaire: commentaire || undefined
+          }
+        });
+        break;
+
+      case 'DEMANDER_INFOS':
+        await prisma.demandeCasier.update({
+          where: { id: demandeId },
+          data: {
+            statut: 'INFORMATIONS_MANQUANTES',
+            commentaire: commentaire || undefined
+          }
+        });
+        break;
+
+      case 'REJETER':
+        if (!commentaire || commentaire.trim().length < 5) {
+          throw new Error('Motif de rejet requis');
+        }
+        await prisma.demandeCasier.update({
+          where: { id: demandeId },
+          data: {
+            statut: 'REJETEE',
+            motifRejet: commentaire.trim(),
+            commentaire: commentaire.trim(),
+            dateTraitement: new Date()
+          }
+        });
+        break;
+
+      case 'GENERER_CASIER':
+        const casierPath = await this.genererCasierJudiciaire(demande);
+        await prisma.demandeCasier.update({
+          where: { id: demandeId },
+          data: {
+            statut: 'TERMINEE',
+            dateTraitement: new Date(),
+            commentaire: commentaire || undefined
+          }
+        });
+        break;
+
+      default:
+        throw new Error('Action non reconnue');
+    }
+
+    return { message: 'Demande traitée avec succès' };
+  }
+
   private static calculatePriority(demande: any): 'HAUTE' | 'MOYENNE' | 'BASSE' {
     const daysSinceCreation = (Date.now() - demande.createdAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceCreation > 10) return 'HAUTE';
@@ -166,50 +258,8 @@ export class AgentService {
     return diffDays > 0 ? `${diffDays}j ${diffHours}h` : `${diffHours}h`;
   }
 
-  static async traiterDemande(agentId: string, demandeId: string, traitement: TraitementData) {
-    const demande = await prisma.demandeCasier.findFirst({
-      where: { id: demandeId, agentId },
-      include: { demandeur: true }
-    });
-
-    if (!demande) throw new Error('Demande non trouvée ou non attribuée à cet agent');
-
-    const { action, commentaire, documentsRequis, motifRejet } = traitement;
-
-    switch (action) {
-      case 'VALIDER':
-        await prisma.demandeCasier.update({
-          where: { id: demandeId },
-          data: { statut: 'EN_VALIDATION', dateTraitement: new Date() }
-        });
-        break;
-      case 'DEMANDER_INFOS':
-        await prisma.demandeCasier.update({
-          where: { id: demandeId },
-          data: { statut: 'INFORMATIONS_MANQUANTES' }
-        });
-        break;
-      case 'REJETER':
-        if (!motifRejet) throw new Error('Motif de rejet requis');
-        await prisma.demandeCasier.update({
-          where: { id: demandeId },
-          data: { statut: 'REJETEE', motifRejet, dateTraitement: new Date() }
-        });
-        break;
-      case 'GENERER_CASIER':
-        const casierPath = await this.genererCasierJudiciaire(demande);
-        await prisma.demandeCasier.update({
-          where: { id: demandeId },
-          data: { statut: 'TERMINEE', dateTraitement: new Date() }
-        });
-        break;
-    }
-
-    return { message: 'Demande traitée avec succès' };
-  }
-
   private static async genererCasierJudiciaire(demande: any): Promise<string> {
-    console.log(`Génération du casier ${demande.typeCasier} pour ${demande.demandeur.fullName}`);
+    console.log(`Génération du casier ${demande.typeCasier} pour ${demande.demandeur?.fullName || 'demande anonyme'}`);
     return `/casiers/${demande.id}.pdf`;
   }
 
@@ -303,11 +353,39 @@ export class AgentService {
         id: demandeId,
         agentId
       },
-      include: {
+      select: {
+        id: true,
+        typeCasier: true,
+        statut: true,
+        modeReception: true,
+        canalNotification: true,
+        createdAt: true,
+        updatedAt: true,
+        dateAttribution: true,
+        dateTraitement: true,
+        dateValidation: true,
+        commentaire: true,
+        demandeurId: true,
+        agentId: true,
+        estAnonyme: true,
+        nomAnonyme: true,
+        prenomAnonyme: true,
+        emailAnonyme: true,
+        telephoneAnonyme: true,
         demandeur: {
-          select: { fullName: true, email: true }
+          select: {
+            fullName: true,
+            email: true
+          }
         },
-        documents: true
+        documents: {
+          select: {
+            id: true,
+            nom: true,
+            typeDocument: true,
+            createdAt: true
+          }
+        }
       }
     });
 

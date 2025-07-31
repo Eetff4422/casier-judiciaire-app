@@ -7,7 +7,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: {
-        userId: string;
+        id: string;
         email: string;
         role: string;
       };
@@ -29,7 +29,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   try {
     const decoded = AuthService.verifyToken(token);
     req.user = {
-      userId: decoded.userId,
+      id: decoded.id,
       email: decoded.email,
       role: decoded.role
     };
@@ -78,7 +78,7 @@ export const optionalAuth = (req: Request, res: Response, next: NextFunction) =>
     try {
       const decoded = AuthService.verifyToken(token);
       req.user = {
-        userId: decoded.userId,
+        id: decoded.userId,
         email: decoded.email,
         role: decoded.role
       };

@@ -33,18 +33,32 @@ const TraitementDemande: React.FC = () => {
     }
   }, [id, token]);
 
-  const handleUpdateStatut = async (statut: 'TERMINEE' | 'REJETEE' | 'INFORMATIONS_MANQUANTES') => {
+  const handleUpdateStatut = async (action: 'VALIDER' | 'REJETER' | 'DEMANDER_INFOS') => {
     try {
       const res = await axios.patch(`${process.env.REACT_APP_API_URL}/demandes/${id}/statut`, 
-        { statut, commentaire },
+        { action, commentaire },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert(`Statut changé : ${res.data.message}`);
-      navigate('/agent'); // retour dashboard
+      navigate('/agent');
     } catch (error) {
       alert('Erreur lors de la mise à jour du statut.');
       console.error('Erreur API:', error);
     }
+  };
+
+  const renderNom = () => {
+    if (!demande) return '';
+    return demande.estAnonyme
+      ? `${demande.nomAnonyme || ''} ${demande.prenomAnonyme || ''}`.trim() || 'Inconnu'
+      : demande.demandeur?.fullName || 'Inconnu';
+  };
+
+  const renderEmail = () => {
+    if (!demande) return '';
+    return demande.estAnonyme
+      ? demande.emailAnonyme || 'Inconnu'
+      : demande.demandeur?.email || 'Inconnu';
   };
 
   if (loading) return <p className="p-4">Chargement...</p>;
@@ -55,15 +69,14 @@ const TraitementDemande: React.FC = () => {
       <h2 className="text-xl font-bold mb-4">Traitement de la demande</h2>
 
       <div className="mb-4 p-4 border rounded">
-        <p><strong>Nom :</strong> {demande.demandeur?.fullName}</p>
-        <p><strong>Email :</strong> {demande.demandeur?.email}</p>
+        <p><strong>Nom :</strong> {renderNom()}</p>
+        <p><strong>Email :</strong> {renderEmail()}</p>
         <p><strong>Type :</strong> {demande.typeCasier}</p>
         <p><strong>Mode de réception :</strong> {demande.modeReception}</p>
         <p><strong>Canal notification :</strong> {demande.canalNotification}</p>
         <p><strong>Statut actuel :</strong> {demande.statut}</p>
       </div>
 
-      {/* Bloc affichage documents */}
       {demande.documents?.length > 0 && (
         <div className="mb-4 p-4 border rounded">
           <h3 className="font-semibold mb-2">Documents joints :</h3>
@@ -97,7 +110,7 @@ const TraitementDemande: React.FC = () => {
       <div className="flex gap-4">
         <button
           className="bg-green-600 text-white px-4 py-2 rounded"
-          onClick={() => handleUpdateStatut('TERMINEE')}
+          onClick={() => handleUpdateStatut('VALIDER')}
         >
           Valider
         </button>
@@ -108,7 +121,7 @@ const TraitementDemande: React.FC = () => {
               alert('Ajoute un commentaire plus explicite pour cette option.');
               return;
             }
-            handleUpdateStatut('INFORMATIONS_MANQUANTES');
+            handleUpdateStatut('DEMANDER_INFOS');
           }}
         >
           Demander infos
@@ -120,7 +133,7 @@ const TraitementDemande: React.FC = () => {
               alert('Ajoute un commentaire pour rejeter la demande.');
               return;
             }
-            handleUpdateStatut('REJETEE');
+            handleUpdateStatut('REJETER');
           }}
         >
           Rejeter

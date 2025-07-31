@@ -27,6 +27,19 @@ model User {
   @@map("users")
 }
 
+model AnonymousDemande {
+  id              String   @id @default(cuid())
+  nom             String
+  prenom          String
+  email           String
+  telephone       String
+  documentUrl     String?  // si tu permets l’upload
+  statut          String   @default("EN_ATTENTE")
+  suiviCode       String   @unique
+  createdAt       DateTime @default(now())
+}
+
+
 model DemandeCasier {
   id                String            @id @default(uuid())
   typeCasier        TypeCasier
@@ -35,13 +48,20 @@ model DemandeCasier {
   canalNotification CanalNotification @default(EMAIL)
   motifRejet        String?
 
-  demandeurId String
-  demandeur   User    @relation(fields: [demandeurId], references: [id])
+  demandeurId String?
+  demandeur   User?    @relation(fields: [demandeurId], references: [id])
   agentId     String?
   agent       User?   @relation("AgentDemandes", fields: [agentId], references: [id])
 
   superviseurId String?
   superviseur   User?   @relation("SuperviseurDemandes", fields: [superviseurId], references: [id])
+
+  estAnonyme      Boolean   @default(false)
+  nomAnonyme      String?
+  prenomAnonyme   String?
+  emailAnonyme    String?
+  telephoneAnonyme String?
+  suiviCode       String  @unique
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -119,6 +139,7 @@ enum ModeReception {
 enum CanalNotification {
   EMAIL
   SMS
+  LES_DEUX
 }
 
 enum TypeDocument {

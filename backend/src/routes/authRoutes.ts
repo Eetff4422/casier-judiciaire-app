@@ -1,7 +1,14 @@
 // backend/src/routes/authRoutes.ts
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
 import { Request, Response, Router } from 'express';
+import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { AuthService, RegisterData } from '../services/authService';
+dotenv.config();
+
+const prisma = new PrismaClient();
 
 const router = Router();
 
@@ -18,6 +25,19 @@ const validatePassword = (password: string): { isValid: boolean; message?: strin
   if (!/(?=.*\d)/.test(password)) return { isValid: false, message: 'Le mot de passe doit contenir un chiffre' };
   return { isValid: true };
 };
+
+const generateToken = (user: any) => {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '24h' }
+  );
+};
+
 
 // --------- Routes ---------
 
@@ -64,22 +84,25 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // POST /auth/login
-router.post('/login', async (req: Request, res: Response) => {
-  console.log('Requête login reçue')
-  try {
-    const { email, password } = req.body;
-    console.log('Données reçues :', email, password);
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email et mot de passe requis' });
-    }
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = await prisma.user.findUnique({ where: { email } });
 
-    const result = await AuthService.login({ email: email.toLowerCase().trim(), password });
+  if (!user) return res.status(401).json({ error: 'Identifiants invalides' });
 
-    res.json({ message: 'Connexion réussie', user: result.user, token: result.token });
-  } catch (error: any) {
-    res.status(401).json({ error: error.message || 'Erreur de connexion' });
+  const validPassword = await bcrypt.compare(password, user.password);
+  if (!validPassword) return res.status(401).json({ error: 'Identifiants invalides' });
+
+  // ✅ Ajouter ce contrôle ici :
+  if (user.statut === 'SUSPENDU') {
+    return res.status(403).json({ error: 'Compte suspendu. Veuillez contacter un administrateur.' });
   }
+
+  // Générer token et renvoyer
+  const token = generateToken(user);
+  return res.json({ token, user });
 });
+
 
 // GET /auth/me
 router.get('/me', authenticateToken, async (req: Request, res: Response) => {
@@ -88,7 +111,7 @@ router.get('/me', authenticateToken, async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Utilisateur non authentifié' });
     }
 
-    const user = await AuthService.getUserById(req.user.userId);
+    const user = await AuthService.getUserById(req.user.id);
     res.json({ user });
   } catch (error: any) {
     res.status(404).json({ error: error.message || 'Utilisateur non trouvé' });
